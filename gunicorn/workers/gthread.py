@@ -119,7 +119,14 @@ class ThreadWorker(base.Worker):
             sock, client = listener.accept()
             # initialize the connection object
             conn = TConn(self.cfg, sock, client, server)
+            
+            if self.nr_conns >= self.max_requests:
+                if self.alive:
+                    self.log.info("Autorestarting worker after current request.")
+                    self.alive = False
+            
             self.nr_conns += 1
+            
             # enqueue the job
             self.enqueue_req(conn)
         except EnvironmentError as e:
@@ -307,11 +314,6 @@ class ThreadWorker(base.Worker):
                                         conn.server, self.cfg)
             environ["wsgi.multithread"] = True
             self.nr += 1
-            if self.nr_conns >= self.max_requests:
-                if self.alive:
-                    self.log.info("Autorestarting worker after current request.")
-                    self.alive = False
-                resp.force_close()
 
             if not self.alive or not self.cfg.keepalive:
                 resp.force_close()
